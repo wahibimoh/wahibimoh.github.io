@@ -6,7 +6,7 @@
     <title>OPFS Web Worker Test</title>
 </head>
 <body>
-    <h1>OPFS Web Worker Test v3</h1>
+    <h1>OPFS Web Worker Test v4</h1>
     <div id="useragent"></div>
     <div id="output"></div>
 
@@ -42,13 +42,13 @@ function testWorker(){
                         try {
                             const accessHandle = await fileHandle.createSyncAccessHandle();
                             try {
-                                accessHandle.truncate(0);
-                                accessHandle.write(encoded, { at: 0 });
-                                accessHandle.flush();
+                                await accessHandle.truncate(0);
+                                await accessHandle.write(encoded, { at: 0 });
+                                await accessHandle.flush();
                                 wroteFile = true;
                                 writeMethod = 'sync';
                             } finally {
-                                accessHandle.close();
+                                await accessHandle.close();
                             }
                         } catch (err) {
                             lastWriteError = err;
@@ -77,7 +77,7 @@ function testWorker(){
                         const accessHandle = await fileHandle.createSyncAccessHandle();
                         try {
                             const readBuffer = new ArrayBuffer(encoded.byteLength);
-                            accessHandle.read(readBuffer, { at: 0 });
+                            await accessHandle.read(readBuffer, { at: 0 });
                             const decoder = new TextDecoder();
                             content = decoder.decode(readBuffer);
                         } finally {
