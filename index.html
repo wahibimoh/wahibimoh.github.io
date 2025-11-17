@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OPFS Web Worker Test v2</title>
+    <title>OPFS Web Worker Test</title>
 </head>
 <body>
-    <h1>OPFS Web Worker Test</h1>
+    <h1>OPFS Web Worker Test v2</h1>
     <div id="useragent"></div>
     <div id="output"></div>
 
@@ -28,10 +28,15 @@ function testWorker(){
                     const fileName = 'test_file.txt';
 
                     // Create and write to a file using the async File System API
+                    // Create and write to a file
                     const fileHandle = await opfsRoot.getFileHandle(fileName, { create: true });
-                    const writable = await fileHandle.createWritable();
-                    await writable.write('Hello from OPFS in Web Worker!');
-                    await writable.close();
+                    const accessHandle = await fileHandle.createSyncAccessHandle();
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode('Hello from OPFS in Web Worker!');
+                    await accessHandle.truncate(0)
+                    await accessHandle.write(data, { at: 0 });
+                    await accessHandle.flush();
+                    await accessHandle.close();
 
                     // Read from the file using getFile()
                     const readFileHandle = await opfsRoot.getFileHandle(fileName);
