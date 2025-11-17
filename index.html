@@ -1,1 +1,76 @@
-Hiiiiii
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OPFS Web Worker Test</title>
+</head>
+<body>
+    <h1>OPFS Web Worker Test</h1>
+    <div id="output"></div>
+
+    <script>
+
+const outputDiv = document.getElementById('output');
+
+document.addEventListener('DOMContentLoaded', () => {
+    outputDiv.textContent = 'Starting OPFS test in Web Worker...';
+    const worker = getWorker()
+
+    worker.postMessage('start_opfs_test');
+
+    worker.onmessage = (event) => {
+        outputDiv.textContent = event.data;
+        worker.terminate(); // Terminate worker after test
+    };
+
+    worker.onerror = (error) => {
+        outputDiv.textContent = `Worker error: ${error.message}`;
+    };
+});
+
+function getWorker(){
+    const workerCode = `
+        self.onmessage = async (event) => {
+            if (event.data === 'start_opfs_test') {
+                try {
+                    const opfsRoot = await navigator.storage.getDirectory();
+                    const fileName = 'test_file.txt';
+
+                    // Create and write to a file
+                    const fileHandle = await opfsRoot.getFileHandle(fileName, { create: true });
+                    const accessHandle = await fileHandle.createSyncAccessHandle();
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode('Hello from OPFS in Web Worker!');
+                    await accessHandle.truncate(0)
+                    await accessHandle.write(data, { at: 0 });
+                    await accessHandle.flush();
+                    await accessHandle.close();
+
+                    // Read from the file
+                    const readFileHandle = await opfsRoot.getFileHandle(fileName);
+                    const readAccessHandle = await readFileHandle.createSyncAccessHandle();
+                    const fileSize = await readAccessHandle.getSize();
+                    const buffer = new ArrayBuffer(fileSize);
+                    await readAccessHandle.read(buffer, { at: 0 });
+                    await readAccessHandle.close();
+
+                    const decoder = new TextDecoder();
+                    const content = decoder.decode(buffer);
+
+                    self.postMessage("OPFS test successful! Content: "+content);
+
+                } catch (error) {
+                    self.postMessage("OPFS test failed:"+error.message);
+                }
+            }
+        };
+    `;
+
+    const workerBlob = new Blob([workerCode], { type: 'text/javascript' });
+    const workerBlobURL = URL.createObjectURL(workerBlob);
+    return new Worker(workerBlobURL);
+}
+    </script>
+</body>
+</html>
