@@ -6,7 +6,7 @@
     <title>OPFS Web Worker Test</title>
 </head>
 <body>
-    <h1>OPFS Web Worker Test v4</h1>
+    <h1>OPFS Web Worker Test v5</h1>
     <div id="useragent"></div>
     <div id="output"></div>
 
@@ -16,6 +16,7 @@ const outputDiv = document.getElementById('output');
 
 document.addEventListener('DOMContentLoaded', async () => {
     useragent.textContent = navigator.userAgent +""
+    outputDiv.textContent = 'Starting OPFS test in Web Worker...';
     outputDiv.textContent = await testWorker()
 });
 
@@ -27,68 +28,33 @@ function testWorker(){
                     const opfsRoot = await navigator.storage.getDirectory();
                     const fileName = 'test_file.txt';
 
-                    // Create a file handle we can reuse for both writing and reading
+                    // Create and write to a file
                     const fileHandle = await opfsRoot.getFileHandle(fileName, { create: true });
-                    const data = 'Hello from OPFS in Web Worker!';
+                    const accessHandle = await fileHandle.createSyncAccessHandle();
                     const encoder = new TextEncoder();
-                    const encoded = encoder.encode(data);
+                    const data = encoder.encode('Hello from OPFS in Web Worker!');
+                    await accessHandle.truncate(0)
+                    await accessHandle.write(data, { at: 0 });
+                    await accessHandle.flush();
+                    await accessHandle.close();
 
-                    let wroteFile = false;
-                    let writeMethod = null;
-                    let lastWriteError = null;
+                    // Read from the file
+                    const readFileHandle = await opfsRoot.getFileHandle(fileName);
+                    //const readAccessHandle = await readFileHandle.createSyncAccessHandle();
+                    //const fileSize = await readAccessHandle.getSize();
+                    const readAccessHandle = await readFileHandle.getFile();
+                    const fileSize = 1000;
+                    const buffer = new ArrayBuffer(fileSize);
+                    await readAccessHandle.read(buffer, { at: 0 });
+                    await readAccessHandle.close();
 
-                    // Prefer the sync access handle path (Safari 16 supports this even without createWritable)
-                    if (typeof fileHandle.createSyncAccessHandle === 'function') {
-                        try {
-                            const accessHandle = await fileHandle.createSyncAccessHandle();
-                            try {
-                                await accessHandle.truncate(0);
-                                await accessHandle.write(encoded, { at: 0 });
-                                await accessHandle.flush();
-                                wroteFile = true;
-                                writeMethod = 'sync';
-                            } finally {
-                                await accessHandle.close();
-                            }
-                        } catch (err) {
-                            lastWriteError = err;
-                        }
-                    }
+                    const decoder = new TextDecoder();
+                    const content = decoder.decode(buffer);
 
-                    // Fallback to FileSystemWritableFileStream when available
-                    if (!wroteFile && typeof fileHandle.createWritable === 'function') {
-                        const writable = await fileHandle.createWritable();
-                        await writable.write(data);
-                        await writable.close();
-                        wroteFile = true;
-                        writeMethod = 'writable';
-                    }
-
-                    if (!wroteFile) {
-                        throw lastWriteError || new Error('No supported OPFS write method available');
-                    }
-
-                    // Read from the file using getFile(). Safari 16.0 has a bug where
-                    // getFile() after a sync write sometimes reports size 0, so fall
-                    // back to another sync read if that happens.
-                    const file = await fileHandle.getFile();
-                    let content = await file.text();
-                    if (!content && writeMethod === 'sync' && file.size === 0 && typeof fileHandle.createSyncAccessHandle === 'function') {
-                        const accessHandle = await fileHandle.createSyncAccessHandle();
-                        try {
-                            const readBuffer = new ArrayBuffer(encoded.byteLength);
-                            await accessHandle.read(readBuffer, { at: 0 });
-                            const decoder = new TextDecoder();
-                            content = decoder.decode(readBuffer);
-                        } finally {
-                            accessHandle.close();
-                        }
-                    }
-
-                    self.postMessage("Content: "+content);
+                    self.postMessage("OPFS test successful! Content: "+content);
 
                 } catch (error) {
-                    self.postMessage("Error: "+error.message);
+                    self.postMessage("OPFS test failed:"+error.message);
                 }
             }
         };
