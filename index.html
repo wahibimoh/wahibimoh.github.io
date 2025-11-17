@@ -14,24 +14,13 @@
 
 const outputDiv = document.getElementById('output');
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     useragent.textContent = navigator.userAgent +""
     outputDiv.textContent = 'Starting OPFS test in Web Worker...';
-    const worker = getWorker()
-
-    worker.postMessage('start_opfs_test');
-
-    worker.onmessage = (event) => {
-        outputDiv.textContent = event.data;
-        worker.terminate(); // Terminate worker after test
-    };
-
-    worker.onerror = (error) => {
-        outputDiv.textContent = `Worker error: ${error.message}`;
-    };
+    outputDiv.textContent = await testWorker()
 });
 
-function getWorker(){
+function testWorker(){
     const workerCode = `
         self.onmessage = async (event) => {
             if (event.data === 'start_opfs_test') {
@@ -71,7 +60,21 @@ function getWorker(){
 
     const workerBlob = new Blob([workerCode], { type: 'text/javascript' });
     const workerBlobURL = URL.createObjectURL(workerBlob);
-    return new Worker(workerBlobURL);
+    const worker = new Worker(workerBlobURL);
+    worker.postMessage('start_opfs_test');
+    return new Promise((res,rej)=>{
+        worker.onmessage = (event) => {
+        //outputDiv.textContent = event.data;
+        worker.terminate(); // Terminate worker after test
+        res(event.data);
+        };
+
+        worker.onerror = (error) => {
+            //outputDiv.textContent = `Worker error: ${error.message}`;
+            worker.terminate();
+            rej(error.message)
+        };
+    })
 }
     </script>
 </body>
