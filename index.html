@@ -6,7 +6,7 @@
     <title>OPFS Web Worker Test</title>
 </head>
 <body>
-    <h1>OPFS Web Worker Test v1.1</h1>
+    <h1>OPFS Web Worker Test</h1>
     <div id="useragent"></div>
     <div id="output"></div>
 
@@ -71,7 +71,7 @@ let debug = ";";
                     // Read from the file using getFile(). Safari 16.0 has a bug where
                     // getFile() after a sync write sometimes reports size 0, so fall
                     // back to another sync read if that happens.
-                    //await opfsRoot.getFileHandle(fileName, { create: false })
+                    await opfsRoot.getFileHandle("t"+fileName, { create: false })
                     const file = await (fileHandle).getFile();
                     let content = await file.text();
 debug += content +";"
