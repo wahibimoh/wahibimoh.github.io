@@ -6,7 +6,8 @@
     <title>OPFS Web Worker Test</title>
 </head>
 <body>
-    <h1>OPFS Web Worker Test v1.2</h1>
+    <h1>OPFS Web Worker Test v2</h1>
+    <div id="cacheout"></div>
     <div id="useragent"></div>
     <div id="output"></div>
 
@@ -15,9 +16,30 @@
 const outputDiv = document.getElementById('output');
 
 document.addEventListener('DOMContentLoaded', async () => {
+    cacheout.textContent = await testCache()
     useragent.textContent = navigator.userAgent +""
     outputDiv.textContent = await testWorker()
 });
+
+async function testCache() {
+    if (!('caches' in window)) {
+        throw new Error('Cache API not supported in this browser');
+    }
+
+    const cacheName = 'opfs-cache-v1';
+    const cacheKey = '/opfs-data';
+    const cache = await caches.open(cacheName);
+    const payload = `Cache test at ${new Date().toISOString()}`;
+
+    await cache.put(cacheKey, new Response(payload, {
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    }));
+
+    const cacheRead = await caches.open(cacheName);
+    const stored = await cacheRead.match(cacheKey);
+    const text = stored ? await stored.text() : 'No cache entry';
+    return text;
+}
 
 function testWorker(){
     const workerCode = `
@@ -71,7 +93,7 @@ let debug = ";";
                     // Read from the file using getFile(). Safari 16.0 has a bug where
                     // getFile() after a sync write sometimes reports size 0, so fall
                     // back to another sync read if that happens.
-                    await opfsRoot.getFileHandle("t"+fileName, { create: true })
+                    await opfsRoot.getFileHandle(fileName, { create: false })
                     const file = await (fileHandle).getFile();
                     let content = await file.text();
 debug += content +";"
