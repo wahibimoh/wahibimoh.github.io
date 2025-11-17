@@ -7,6 +7,7 @@
 </head>
 <body>
     <h1>OPFS Web Worker Test</h1>
+    <div id="useragent"></div>
     <div id="output"></div>
 
     <script>
@@ -14,6 +15,7 @@
 const outputDiv = document.getElementById('output');
 
 document.addEventListener('DOMContentLoaded', () => {
+    useragent.textContent = navigator.userAgent +""
     outputDiv.textContent = 'Starting OPFS test in Web Worker...';
     const worker = getWorker()
 
